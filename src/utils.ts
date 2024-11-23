@@ -1,17 +1,18 @@
-import { Gender, NewPatientEntry } from './types';
+import { DiagnoseEntry, Discharge, Entry, Gender, HealthCheckRating, NewEntry, NewPatientEntry, SickLeave, Type } from './types';
 
-const toNewPatientEntry = (object: unknown): NewPatientEntry => {
+export const toNewPatientEntry = (object: unknown): NewPatientEntry => {
     if ( !object || typeof object !== 'object' ) {
         throw new Error('Incorrect or missing data');
     }
 
-    if ('name' in object && 'dateOfBirth' in object && 'ssn' in object && 'gender' in object && 'occupation' in object)  {
+    if ('name' in object && 'dateOfBirth' in object && 'ssn' in object && 'gender' in object && 'occupation' in object && 'entries' in object)  {
         const newEntry: NewPatientEntry = {
-            name: parseName(object.name),
+            name: parseString(object.name),
             dateOfBirth: parseDate(object.dateOfBirth),
-            ssn: parseSsn(object.ssn),
+            ssn: parseString(object.ssn),
             gender: parseGender(object.gender),
-            occupation: parseOccupation(object.occupation)
+            occupation: parseString(object.occupation),
+            entries: parseEntries(object.entries)
         }
         return newEntry;
     }
@@ -19,25 +20,11 @@ const toNewPatientEntry = (object: unknown): NewPatientEntry => {
     throw new Error('Incorrect data: some fields are missing');
 };
 
-const parseName = (name: unknown): string => {
-    if (!name || !isString(name)) {
-      throw new Error('Incorrect or missing name');
+const parseString = (string: unknown): string => {
+    if (!string || !isString(string)) {
+        throw new Error('Incorrect or missing string: ' + string);
     }
-    return name;
-};
-
-const parseSsn = (ssn: unknown): string => {
-    if (!ssn || !isString(ssn)) {
-      throw new Error('Incorrect or missing ssn');
-    }
-    return ssn;
-};
-
-const parseOccupation = (occupation: unknown): string => {
-    if (!occupation || !isString(occupation)) {
-      throw new Error('Incorrect or missing occupation');
-    }
-    return occupation;
+    return string;
 };
 
 const isString = (text: unknown): text is string => {
@@ -66,4 +53,96 @@ const isGender = (param: string): param is Gender => {
     return Object.values(Gender).map(v => v.toString()).includes(param);
 };
 
-export default toNewPatientEntry;
+const parseHealthCheckRating = (healthCheckRating: unknown): HealthCheckRating => {
+    if (!healthCheckRating || !isString(healthCheckRating) || !isHealthCheckRating(healthCheckRating)) {
+        throw new Error('Incorrect or missing healthCheckRating: ' + healthCheckRating);
+    }
+    return healthCheckRating;
+};
+
+const isHealthCheckRating = (param: string): param is HealthCheckRating => {
+    return Object.values(HealthCheckRating).map(v => v.toString()).includes(param);
+};
+
+const parseEntries = (entries: unknown): Entry[] => {
+    if (!entries || !Array.isArray(entries)) {
+      throw new Error('Missing Entries');
+    }
+    
+    return entries.map(entry => entry as Entry);
+};
+
+const parseDiagnosisCodes = (object: unknown): Array<DiagnoseEntry['code']> =>  {
+    if (!object || typeof object !== 'object' || !('diagnosisCodes' in object)) {
+      return [] as Array<DiagnoseEntry['code']>;
+    }
+  
+    return object.diagnosisCodes as Array<DiagnoseEntry['code']>;
+};
+
+const parseDischarge = (discharge: unknown): Discharge =>  { 
+    if (!discharge || typeof discharge !== 'object' || !('date' in discharge) || !('criteria' in discharge)) {
+        throw new Error('Incorrect or missing discharge: ' + discharge);
+    }
+    return discharge as Discharge;
+}
+
+const parseSickLeave = (sickLeave: unknown): SickLeave =>  { 
+    if (!sickLeave || typeof sickLeave !== 'object' || !('startDate' in sickLeave) || !('endDate' in sickLeave)) {
+        throw new Error('Incorrect or missing sickLeave: ' + sickLeave);
+    }
+    return sickLeave as SickLeave;
+}
+
+export const toNewEntry = (object: unknown): NewEntry => {
+    if ( !object || typeof object !== 'object' ) {
+        throw new Error('Incorrect or missing data');
+    }
+
+    if ('description' in object && 'specialist' in object && 'type' in object && 'date' in object)  {
+        switch(object.type) {
+            case Type.HealthCheck:
+                if('healthCheckRating' in object) {
+                    return {
+                        description: parseString(object.description),
+                        date: parseDate(object.date),
+                        specialist: parseString(object.specialist),
+                        type: Type.HealthCheck,
+                        healthCheckRating: parseHealthCheckRating(object.healthCheckRating),
+                        diagnosisCodes: parseDiagnosisCodes(object)
+                    }
+                }
+                break;
+            case Type.Hospital:
+                if('discharge' in object) {
+                    return {
+                        description: parseString(object.description),
+                        date: parseDate(object.date),
+                        specialist: parseString(object.specialist),
+                        type: Type.Hospital,
+                        discharge: parseDischarge(object.discharge),
+                        diagnosisCodes: parseDiagnosisCodes(object)
+                    }
+                }
+                break;
+            case Type.OccupationalHealthCare:
+                if('employerName' in object && 'sickLeave' in object) {
+                    return {
+                        description: parseString(object.description),
+                        date: parseDate(object.date),
+                        specialist: parseString(object.specialist),
+                        type: Type.OccupationalHealthCare,
+                        employerName: parseString(object.employerName),
+                        sickLeave: parseSickLeave(object.sickLeave),
+                        diagnosisCodes: parseDiagnosisCodes(object)
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
+                    
+    throw new Error('Incorrect data: some fields are missing');
+};
+                
